@@ -1,0 +1,48 @@
+﻿@page "/"
+@inject PersistentComponentState ApplicationState
+
+<PageTitle>Index</PageTitle>
+
+<h1>Hello, Sheely!</h1>
+
+Welcome to your new app. Counter: <span>@MyState.counter</span>
+
+<button @onclick="increment">Increment</button>
+
+
+@code {
+    private PersistingComponentStateSubscription _subscription;
+    public State MyState = new();
+    protected override async Task OnInitializedAsync()
+    {
+        _subscription = ApplicationState.RegisterOnPersisting(CounterFetchData);
+        if (ApplicationState.TryTakeFromJson<State>("counterData", out var stored))
+            Console.WriteLine("Restored from storage" + JsonSerializer.Serialize(stored));
+        if (stored != null)
+            MyState = stored;
+        else
+            MyState = new();
+    }
+
+    private Task CounterFetchData()
+    {
+        ApplicationState.PersistAsJson("counterData", MyState);
+        return Task.CompletedTask;
+    }
+
+    public void Dispose()
+    {
+        _subscription.Dispose();
+    }
+
+
+    public class State
+    {
+        public int counter { get; set; } = 5;
+    }
+    public void increment()
+    {
+        MyState.counter++;
+    }
+
+}

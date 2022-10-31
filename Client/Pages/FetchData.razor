@@ -1,0 +1,80 @@
+﻿@page "/fetchdata"
+@using BlazorSSR.Shared
+@inject HttpClient Http
+@inject PersistentComponentState ApplicationState
+@inject NavigationManager NavigationManager
+
+<PageTitle>Weather forecast</PageTitle>
+
+<h1 class="header">Weather forecast</h1>
+
+<p>This component demonstrates fetching data from the server.</p>
+
+@if (forecasts == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Temp. (C)</th>
+                <th>Temp. (F)</th>
+                <th>Summary</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var forecast in forecasts)
+            {
+                <tr>
+                    <td>@forecast.Date.ToShortDateString()</td>
+                    <td>@forecast.TemperatureC</td>
+                    <td>@forecast.TemperatureF</td>
+                    <td>@forecast.Summary</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <button @onclick="NextPage">Update Page Id</button>
+}
+
+@code {
+    private WeatherForecast[]? forecasts;
+    private PersistingComponentStateSubscription _subscription;
+
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public int PageId { get; set; }
+    protected override async Task OnInitializedAsync()
+    {
+        _subscription = ApplicationState.RegisterOnPersisting(GetData);
+
+        if (ApplicationState.TryTakeFromJson<WeatherForecast[]>("weatherData", out var stored))
+            Console.WriteLine("Restored from storage" + JsonSerializer.Serialize(stored));
+        if (stored != null)
+            forecasts = stored;
+        else
+            forecasts = await Http.GetFromJsonAsync<WeatherForecast[]>("WeatherForecast");
+        
+
+    }
+    public void Dispose()
+    {
+        _subscription.Dispose();
+    }
+
+    private Task GetData()
+    {
+
+        ApplicationState.PersistAsJson("weatherData", forecasts);
+        return Task.CompletedTask;
+    }
+
+    public void NextPage()
+    {
+        PageId++;
+        NavigationManager.NavigateTo($"fetchdata?pageId={PageId}");
+    }
+}
